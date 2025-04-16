@@ -14,3 +14,33 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Initialize environment
+        run: |
+          echo "python VERSION -> python3.11"
+          echo "__Starting Lambda layer creation utility__"
+          pipenv shell
+          pipenv install
+
+      - name: Generate requirements.txt
+        run: pipenv requirements > requirements.txt
+
+      - name: Clean up Old artifacts
+        run: |
+          rm -f *.zip
+          rm -f *.tmp
+
+      - name: Lint with flake8
+        run: |
+          echo "__ Linting the code with flake8 __"
+          pip install flake8
+          flake8 . #adjust path as needed
+
+      - name: Run tests with pytest
+        run: |
+          echo "__ Running tests with pytest __"
+          pip install pytest
+          pytest
