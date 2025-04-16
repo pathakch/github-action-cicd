@@ -1,0 +1,16 @@
+name: Crreate gitHub actions ci-cd pipeline
+on:
+  push:
+    branches: [ "main" ]
+jobs:
+  deploy-lambda:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
