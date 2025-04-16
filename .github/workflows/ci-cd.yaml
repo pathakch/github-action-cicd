@@ -48,14 +48,14 @@ jobs:
       - name: Build function zip
         run: |
           echo "__ zipping the main lambda code __"
-          zip -gr ./$(basename $pwd).zip ./* -x "*^.*|$(basename $pwd).zip"
+          zip -gr ./$(basename $PWD).zip ./* -x "*^.*|$(basename $PWD).zip"
 
       - name: Update Lambda Function code
         run: |
           echo "__ Updating lambda function code in AWS __"
           aws lambda update-function-code \
-            --function-name $(basename $pwd) \
-            --zip-file fileb://$(basename $pwd).zip
+            --function-name $(basename $PWD) \
+            --zip-file fileb://$(basename $PWD).zip
 
       - name: Create zip for layer package
         run: |
