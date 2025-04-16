@@ -10,6 +10,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Set up aws Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{secrets.AWS_ACCESS_KEY_ID}}
+          aws-secret-access-key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+          aws-region: ap-south-1
+
       - name: Set up python 3.11
         uses: actions/setup-python@v4
         with:
@@ -43,3 +50,21 @@ jobs:
           echo "__ Running tests with pytest __"
           pip install pytest
           pytest
+
+      - name: Build function zip
+        run: |
+        echo "__ zipping the main lambda code __"
+        zip -gr ./$(basename $pwd).zip ./* -x "*^.*|$(basename $pwd).zip"
+
+      - name: Update Lambda Function code
+        run |
+          echo "__ Updating lambda function code in AWS __"
+          aws lambda update-function-code \
+            --function-name $(basename $pwd) \
+            --zip-file fileb://$(basename $pwd).zip
+
+      - name: Create zip for layer package
+        run: |
+          echo "__ zipping python libraries for the Lambda layer __"
+
+          
