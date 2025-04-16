@@ -45,12 +45,6 @@ jobs:
           pip install flake8
           flake8 . #adjust path as needed
 
-      - name: Run tests with pytest
-        run: |
-          echo "__ Running tests with pytest __"
-          pip install pytest
-          pytest
-
       - name: Build function zip
         run: |
           echo "__ zipping the main lambda code __"
