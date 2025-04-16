@@ -22,7 +22,6 @@ jobs:
         run: |
           echo "python VERSION -> python3.11"
           echo "__Starting Lambda layer creation utility__"
-          pipenv shell
           pipenv install
 
       - name: Generate requirements.txt
