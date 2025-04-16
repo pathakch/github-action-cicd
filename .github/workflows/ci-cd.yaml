@@ -53,8 +53,8 @@ jobs:
 
       - name: Build function zip
         run: |
-        echo "__ zipping the main lambda code __"
-        zip -gr ./$(basename $pwd).zip ./* -x "*^.*|$(basename $pwd).zip"
+          echo "__ zipping the main lambda code __"
+          zip -gr ./$(basename $pwd).zip ./* -x "*^.*|$(basename $pwd).zip"
 
       - name: Update Lambda Function code
         run |
