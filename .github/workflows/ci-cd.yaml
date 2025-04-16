@@ -57,7 +57,7 @@ jobs:
           zip -gr ./$(basename $pwd).zip ./* -x "*^.*|$(basename $pwd).zip"
 
       - name: Update Lambda Function code
-        run |
+        run: |
           echo "__ Updating lambda function code in AWS __"
           aws lambda update-function-code \
             --function-name $(basename $pwd) \
