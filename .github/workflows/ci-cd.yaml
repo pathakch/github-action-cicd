@@ -67,7 +67,7 @@ jobs:
           zip -r9 ${GITHUB_WORKSPACE}/packages.zip python/
           rm -r $VENV_PATH/python
 
-      - name: Publisg Lambda Layer
+      - name: Publishing Lambda Layer
         run: |
           echo "__ Publishing new lambda layer version __"
           desc="$(grep -o '.*==.....' ${GITHUB_WORKSPACE}/requirements.txt)"
@@ -75,7 +75,7 @@ jobs:
             --layer-name $(basename $PWD) \
             --description "$desc" \
             --zip-file fileb://${GITHUB_WORKSPACE}/packages.zip \
-            --compaible-runtimes python3.6 python3.11 \
+            --compatible-runtimes python3.6 python3.11 \
             --compatible-architectures "arm64" "x86_64" > layer.tmp
 
       - name: Update Function Configuration with New Layer
