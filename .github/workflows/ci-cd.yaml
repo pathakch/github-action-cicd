@@ -65,7 +65,7 @@ jobs:
           mkdir python
           cp -r lib python/
           zip -r9 ${GITHUB_WORKSPACE}/packages.zip python/
-          rm -r $VIRTUAL_ENV/python
+          rm -r $VENV_PATH/python
 
       - name: Publisg Lambda Layer
         run: |
