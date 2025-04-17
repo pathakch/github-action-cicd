@@ -60,5 +60,36 @@ jobs:
       - name: Create zip for layer package
         run: |
           echo "__ zipping python libraries for the Lambda layer __"
+          pipenv shell
+          cd $VIRTUAL_ENV
+          mkdir python
+          cp -r lib python/
+          zip -r9 ${GITHUB_WORKSPACE}/packages.zip python/
+          rm -r $VIRTUAL_ENV/python
+
+      - name: Publisg Lambda Layer
+        run: |
+          echo "__ Publishing new lambda layer version __"
+          desc="$(grep -o '.*==.....' ${GITHUB_WORKSPACE}/requirements.txt)"
+          aws lambda publish-layer-version \
+            --layer-name $(basename $PWD) \
+            --description "$desc" \
+            --zip-file fileb://${GITHUB_WORKSPACE}/packages.zip \
+            --compaible-runtimes python3.6 python3.11 \
+            --compatible-architectures "arm64" "x86_64" > layer.tmp
+
+      - name: Update Function Configuration with New Layer
+        run: |
+          echo "__ Updating function configuration to use the new layer __"
+          cat layer.tmp | grep -o "arn.*$(basename $PWD):[0-9]*" > arn.tmp
+          arn="$(cat arn.tmp)"
+          aws lambda update-function-configuration \
+            --function-name $(basename $PWD) \
+            --layers "$arn"
+      - name: Final Cleanup
+        run: |
+          rm -f *.zip
+          rm -f *.tmp
+
 
           
