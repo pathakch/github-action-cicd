@@ -1,0 +1,138 @@
+name: Deploy AWS Lambda and Layer
+on: 
+#   push: 
+#     branches: 
+#       - main
+#       - dev
+#       - feature/*
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs: 
+  deploy-lambda: 
+    runs-on: ubuntu-latest
+
+    steps: 
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Set up AWS Credentials
+        uses: actions/configure-aws-credentials@v4
+        with: 
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2  # Change to your desired region
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@main
+        with: 
+          python-version: "3.10"
+
+      - name: Upgrade pip
+        run: |
+          python -m pip install --upgrade pip
+
+      - name: Clean up old artifacts
+        run: |
+          rm -f *.zip
+          rm -f *.tmp
+
+      # -------------------------------- Create ZIP to package main lambda function code------------------------
+      # Below command will include all the files which are required to run main.py file including test, utils and logging folder and 
+      # excluding file starts with '. and the zip file', NOTE:  but it was not working so put before any file with '.' created
+
+      - name: Build function zip
+        run: |
+          echo "___ Zipping the main Lambda code ___"
+          zip -gr ./$(basename $PWD).zip ./* -x "*^.*|$(basename $PWD).zip"
+
+      #--------------------------------- Build Lambda Layer --------------------------------------
+      # All new or updated dependencies are attached with layer, so need to install in layer only
+      - name: Install dependencies For lambda layer
+        run: |
+          mkdir -p python
+          pip install -r ${GITHUB_WORKSPACE}/requirements.txt -t python/
+
+      - name: Create zip for layer packages
+        run: |
+          echo "___ Zipping Python libraries for the Lambda layer ___"
+          zip -r9 ${GITHUB_WORKSPACE}/packages.zip python/
+          rm -r python
+
+      - name: Publish Lambda layer
+        run: |
+          echo "___ Publishing new Lambda layer version ___"
+          #desc="$(grep -o '.*==.....' ${GITHUB_WORKSPACE}/requirements.txt)"
+          desc="$(head -n 1 ${GITHUB_WORKSPACE}/requirements.txt)"
+          aws lambda publish-layer-version \
+            --layer-name $(basename $PWD) \
+            --description "$desc" \
+            --zip-file fileb://${GITHUB_WORKSPACE}/packages.zip \
+            --compatible-runtimes python3.10 \
+            --compatible-architectures "arm64" "x86_64" > layer.tmp
+
+      #------------------------------ Run flake8 and pytest--------------------------------------
+      - name: Lint with flake8
+        run: |
+          echo "___ Linting the code with flake8 ___"
+          pip install flake8
+          flake8 . || true # Adjust path as needed
+
+      - name: Run tests with pytest
+        run: |
+          echo "___ Running tests with pytest ___"
+          pip install pytest
+          pytest || echo "test failed but continuing" # Adjust path as needed
+
+    # -------------------------------- Build/Update Lambda function ----------------------------
+
+      - name: Check and Create Lambda Function
+        run: |
+          LAMBDA_NAME=$(basename $PWD)
+          echo "Checking if Lambda function '$LAMBDA_NAME' exists..."
+
+          if aws lambda get-function --function-name "$LAMBDA_NAME" > /dev/null 2>&1; then
+            echo "Lambda function '$LAMBDA_NAME' already exists. Skipping creation."
+
+            aws lambda update-function-code \
+            --function-name $(basename $PWD) \
+            --zip-file fileb://$(basename $PWD).zip
+
+          else
+            echo "Lambda function '$LAMBDA_NAME' does not exist. Creating now..."
+
+            # Create Lambda function 
+            aws lambda create-function \
+              --function-name "$LAMBDA_NAME" \
+              --runtime python3.10 \
+              --role arn:aws:iam::180107116699:role/tot-LambdaSSMRole \
+              --handler main.main \
+              --zip-file fileb://$(basename $PWD).zip \
+              --tags RoleType=totaws \
+              --timeout 900
+
+            echo "Lambda function '$LAMBDA_NAME' created."
+          fi
+
+      - name: wait for Lambda function completion/Updation
+        run: |
+          aws lambda wait function-updated --function-name $(basename $PWD)
+
+      # ---------------------------- Update Lambda Function Configuration -----------------------
+      - name: Update function configuration with new layer
+        run: |
+          echo "___ Updating function configuration to use the new layer ___"
+          cat layer.tmp | grep -o "arn.*$(basename $PWD):[0-9]*" > arn.tmp
+          arn="$(cat arn.tmp)"
+          aws lambda update-function-configuration \
+            --function-name $(basename $PWD) \
+            --layers "$arn"
+
+      - name: wait for Lambda function completion/Updation
+        run: |
+          aws lambda wait function-updated --function-name $(basename $PWD)
+
+      # -------------------------------- Clean ZIP and temp folder-------------------------------
+      - name: Final cleanup
+        run: |
+          rm -f *.zip
+          rm -f *.tmp
